@@ -64,7 +64,7 @@ async def main():
                     keys_file_tmp = "%s.tmp" % keys_file
                     with open(keys_file_tmp, 'w') as out:
                         for key in user_keys:
-                            out.write("%s\n" % key.rstrip())
+                            out.write("%s\n" % key)
                     os.rename(keys_file_tmp, keys_file)
                 previous = host_keys
         except Exception as e:

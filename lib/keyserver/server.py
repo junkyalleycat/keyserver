@@ -35,7 +35,7 @@ class Keys:
                 for pre_key in pre_user_keys:
                     if pre_key.startswith('file!'):
                         with open(pre_key[5:], 'r') as in_:
-                            key = in_.read()
+                            key = in_.read().rstrip()
                     else:
                         key = pre_key
                     if key not in user_keys:
