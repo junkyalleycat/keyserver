@@ -13,7 +13,7 @@ default_config_file = '/usr/local/etc/keyfetcher.yaml'
 default_keydir = '/var/db/sshkeys'
 default_server = 'keyserver'
 # TODO increase
-default_period = 1
+default_period = 10
 
 class Config:
 
