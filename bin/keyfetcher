@@ -7,6 +7,6 @@ import asyncio
 libpath = "%s/../lib" % os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, libpath)
 
-from keyserver.daemon import main
+from keyserver.fetcher import main
 
 sys.exit(asyncio.run(main()))

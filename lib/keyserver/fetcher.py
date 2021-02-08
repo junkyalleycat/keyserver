@@ -4,13 +4,43 @@ import os
 import socket
 import logging
 import asyncio
+import json
+import argparse
 
 from . import client
 
-keydir = '/var/db/sshkeys'
-server = 'raincity.lan'
+default_config_file = '/usr/local/etc/keyfetcher.yaml'
+default_keydir = '/var/db/sshkeys'
+default_server = 'keyserver'
+# TODO increase
+default_period = 1
+
+class Config:
+
+    def __init__(self, filename):
+        try:
+            with open(filename, 'r') as in_:
+                self.config = yaml.load(in_.read())
+        except FileNotFoundError:
+            self.config = {}
+
+    def get(self, key, default=None):
+        if key in self.config:
+            return self.config[key]
+        if default is None:
+            raise KeyError(key)
+        return default
 
 async def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', default=default_config_file, metavar='config')
+    args = parser.parse_args()
+
+    config = Config(args.c)
+    keydir = config.get('keydir', default=default_keydir)
+    server = config.get('server', default=default_server)
+    period = config.get('period', default=default_period)
+
     os.makedirs(keydir, exist_ok=True)
 
     previous = None
@@ -39,4 +69,4 @@ async def main():
                 previous = host_keys
         except Exception as e:
             logging.exception(e)
-        await asyncio.sleep(1)
+        await asyncio.sleep(period)
