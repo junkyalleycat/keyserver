@@ -1,0 +1,25 @@
+#!/bin/sh
+
+# REQUIRE: DAEMON
+# PROVIDE: keydaemon
+# KEYWORD: shutdown
+
+export PATH=/usr/local/bin:$PATH
+
+. /etc/rc.subr
+
+name="keydaemon"
+load_rc_config $name
+
+rcvar="${name}_enable"
+pidfile="/var/run/$name.pid"
+command="/usr/sbin/daemon"
+command_args="-c -r -t $name -S -T $name -P $pidfile -p $pidfile.child /usr/local/keyserver/bin/keydaemon"
+extra_commands=reload
+reload_cmd=keydaemon_reload
+
+keydaemon_reload() {
+  kill -s USR1 `cat $pidfile.child`
+}
+
+run_rc_command "$1"
