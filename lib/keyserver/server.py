@@ -115,7 +115,7 @@ async def main():
         except asyncio.IncompleteReadError:
             pass
         except Exception as e:
-            logging.error(e)
+            logging.exception(e)
         finally:
             writer.close()
     await asyncio.start_server(handler, '0.0.0.0', 8282)
