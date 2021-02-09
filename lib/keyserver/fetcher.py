@@ -30,7 +30,7 @@ async def main():
     previous = None
     while True:
         try:
-            hostname = socket.gethostname()
+            hostname = socket.getfqdn()
             host_keys = await client.fetch(server=server, port=port, hostname=hostname)
             if host_keys == previous:
                 logging.info('no changes detected, ignoring')
