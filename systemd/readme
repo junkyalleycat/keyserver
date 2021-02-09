@@ -1,0 +1,5 @@
+cp unit to /etc/systemd/system
+$ systemctl daemon-reload
+$ systemctl enable keyfetcher
+$ systemctl start keyfetcher
+$ journalctl --unit keyfetcher
