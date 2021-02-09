@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import signal
 import sys
 import asyncio
@@ -8,6 +9,7 @@ import yaml
 import json
 
 keydb = '/var/db/keyserver.db'
+enable_monitor = True
 
 class Keys:
 
@@ -117,5 +119,17 @@ async def main():
         finally:
             writer.close()
     await asyncio.start_server(handler, '0.0.0.0', 8282)
+
+    # monitor the db for change
+    async def monitor():
+        previous = os.stat(keydb).st_mtime
+        while True:
+            mtime = os.stat(keydb).st_mtime
+            if mtime != previous:
+                keys.reload()
+                previous = mtime
+            await asyncio.sleep(1)
+    if enable_monitor:
+        asyncio.create_task(monitor())
 
     await finish.wait()

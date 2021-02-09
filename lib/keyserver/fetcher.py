@@ -51,6 +51,8 @@ async def main():
                             out.write("%s\n" % key)
                     os.rename(keys_file_tmp, keys_file)
                 previous = host_keys
+        except ConnectionRefusedError as e:
+            logging.error(e)
         except Exception as e:
             logging.exception(e)
         await asyncio.sleep(period)
