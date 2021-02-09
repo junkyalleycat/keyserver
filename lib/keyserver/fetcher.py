@@ -10,19 +10,20 @@ import argparse
 from . import client
 
 default_keydir = '/var/db/sshkeys'
-default_server = 'keyserver'
 default_period = 10
 
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-k', default=default_keydir, metavar='keydir')
-    parser.add_argument('-s', default=default_server, metavar='server')
-    parser.add_argument('-p', type=int, default=default_period, metavar='period')
+    parser.add_argument('-s', metavar='server')
+    parser.add_argument('-p', type=int, metavar='port')
+    parser.add_argument('--period', type=int, default=default_period, metavar='period')
     args = parser.parse_args()
 
     keydir = args.k
     server = args.s
-    period = args.p
+    port = args.p
+    period = args.period
 
     os.makedirs(keydir, exist_ok=True)
 
@@ -30,7 +31,7 @@ async def main():
     while True:
         try:
             hostname = socket.gethostname()
-            host_keys = await client.fetch(server=server, hostname=hostname)
+            host_keys = await client.fetch(server=server, port=port, hostname=hostname)
             if host_keys == previous:
                 logging.info('no changes detected, ignoring')
             elif len(host_keys) == 0:

@@ -4,31 +4,56 @@ import asyncio
 import argparse
 import json
 
-async def fetch(*, server=None, port=None, hostname=None):
-    server = '127.0.0.1' if server is None else server
-    port = 8282 if port is None else port
-    writer = None
-    try:
-        reader, writer = await asyncio.open_connection(server, port)
-        if hostname is None:
-            hostname_blob = b''
-        else:
-            hostname_blob = hostname.encode('utf8')
+default_port = 8282
+default_server = 'keyserver'
+default_timeout = 5
+
+class Client:
+
+    def __init__(self, *, server=None, port=None):
+        self.server = default_server if server is None else server
+        self.port = default_port if port is None else port
+        self.reader = None
+        self.writer = None
+        self.lock = asyncio.Lock()
+       
+    async def __aenter__(self):
+        if self.writer is not None:
+            raise Exception("already opened")
+        self.reader, self.writer = await asyncio.open_connection(self.server, self.port)
+        return self
+
+    async def __aexit__(self, *args):
+        if self.writer is not None:
+            self.writer.close()
+
+    async def fetch(self, *, hostname=None, timeout=None):
+        timeout = default_timeout if timeout is None else timeout
+        async with self.lock:
+            return await asyncio.wait_for(self._fetch(hostname=hostname), timeout)
+
+    async def _fetch(self, *, hostname=None):
+        hostname_blob = b'' if hostname is None else hostname.encode('utf8')
         hostname_len_blob = len(hostname_blob).to_bytes(1, byteorder='big')
-        writer.write(hostname_len_blob)
-        writer.write(hostname_blob)
-        host_keys_len = int.from_bytes(await reader.readexactly(2), byteorder='big')
-        host_keys_blob = await reader.readexactly(host_keys_len)
+        self.writer.write(hostname_len_blob)
+        self.writer.write(hostname_blob)
+        host_keys_len = int.from_bytes(await self.reader.readexactly(2), byteorder='big')
+        host_keys_blob = await self.reader.readexactly(host_keys_len)
         return json.loads(host_keys_blob)
-    finally:
-        if writer is not None:
-            writer.close()
+
+async def fetch(*, server=None, port=None, hostname=None):
+    async with Client(server=server, port=port) as client:
+        return await client.fetch(hostname=hostname)
 
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', nargs='?', const='*', metavar='hostname', required=True)
-    parser.add_argument('-s', default='127.0.0.1:8282', metavar='server')
+    parser.add_argument('-s', metavar='server')
+    parser.add_argument('-p', type=int, metavar='port')
     args = parser.parse_args()
-    server, portstr = args.s.split(':')
-    host_keys = await fetch(server=server, port=int(portstr), hostname=args.f)
+    hostname = args.f
+    server = args.s
+    port = args.p
+    async with Client(server=server, port=port) as client:
+        host_keys = await client.fetch(hostname=hostname) 
     print(json.dumps(host_keys, indent=2, sort_keys=True))
