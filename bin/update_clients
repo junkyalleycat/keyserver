@@ -1,0 +1,24 @@
+#!/bin/sh
+
+cat <<EOF | while read hostname; do
+raincity
+hydra
+athena
+vega
+kronos
+triton
+phobos
+proteus
+ariel
+europa
+kepler
+mercury
+jupiter
+ubuntu
+EOF
+  echo "::Update $hostname::"
+  ssh -n -A $hostname sudo git -C /usr/local/keyserver pull --rebase
+  echo "restart $hostname" # somehow this works with systemd too
+  timeout 1 ssh -n $hostname sudo service keyfetcher restart
+  ssh -n raincity 'bash -c "sudo service keyfetcher restart </dev/null >/dev/null 2>/dev/null"'
+done
