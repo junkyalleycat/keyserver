@@ -3,4 +3,3 @@ WantedBy = multi-user.target
 
 [Service]
 ExecStart=/usr/local/keyserver/bin/keyfetcher
-ExecReload=kill -s SIGUSR1 $MAINPID
