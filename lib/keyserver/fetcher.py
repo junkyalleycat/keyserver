@@ -51,6 +51,10 @@ async def main():
                             out.write("%s\n" % key)
                     os.rename(keys_file_tmp, keys_file)
                 previous = host_keys
+        except asyncio.TimeoutError:
+            logging.error("read timeout")
+        except asyncio.IncompleteReadError as e:
+            logging.error(e)
         except ConnectionRefusedError as e:
             logging.error(e)
         except Exception as e:
