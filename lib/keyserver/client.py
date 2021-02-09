@@ -37,7 +37,7 @@ class Client:
         hostname_len_blob = len(hostname_blob).to_bytes(1, byteorder='big')
         self.writer.write(hostname_len_blob)
         self.writer.write(hostname_blob)
-        host_keys_len = int.from_bytes(await self.reader.readexactly(2), byteorder='big')
+        host_keys_len = int.from_bytes(await self.reader.readexactly(3), byteorder='big')
         host_keys_blob = await self.reader.readexactly(host_keys_len)
         return json.loads(host_keys_blob)
 

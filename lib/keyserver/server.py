@@ -101,6 +101,7 @@ async def main():
     loop.add_signal_handler(signal.SIGUSR1, reload_handler)
 
     async def handler(reader, writer):
+#        peer = writer.get_extra_info('peername')
         try:
             while True:
                 hostname_len = int.from_bytes(await reader.readexactly(1), byteorder='big')
@@ -110,7 +111,7 @@ async def main():
                     hostname = (await reader.readexactly(hostname_len)).decode('utf8')
                 host_keys = keys.get_host_keys(hostname=hostname)
                 host_keys_blob = json.dumps(host_keys).encode('utf8')
-                writer.write(len(host_keys_blob).to_bytes(2, byteorder='big'))
+                writer.write(len(host_keys_blob).to_bytes(3, byteorder='big'))
                 writer.write(host_keys_blob)
         except asyncio.IncompleteReadError:
             pass
