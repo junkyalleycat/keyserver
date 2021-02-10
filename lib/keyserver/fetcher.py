@@ -10,33 +10,31 @@ import argparse
 from . import client
 
 default_keydir = '/var/db/sshkeys'
-default_period = 10
 
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-k', default=default_keydir, metavar='keydir')
     parser.add_argument('-s', metavar='server')
     parser.add_argument('-p', type=int, metavar='port')
-    parser.add_argument('--period', type=int, default=default_period, metavar='period')
     args = parser.parse_args()
 
     keydir = args.k
     server = args.s
     port = args.p
-    period = args.period
 
     os.makedirs(keydir, exist_ok=True)
 
     previous = None
     while True:
         try:
-            hostname = socket.getfqdn()
-            host_keys = await client.fetch(server=server, port=port, hostname=hostname)
-            if host_keys == previous:
-                logging.info('no changes detected, ignoring')
-            elif len(host_keys) == 0:
-                logging.warn('0 host keys found, ignoring')
-            else:
+            async def cb(host_keys):
+                nonlocal previous
+                if host_keys == previous:
+                    logging.info('no changes detected, ignoring')
+                    return
+                elif len(host_keys) == 0:
+                    logging.warn('0 host keys found, ignoring')
+                    return
                 for keys_file in os.listdir(keydir):
                     user, ext = os.path.splitext(keys_file)
                     if ext != '.keys':
@@ -50,7 +48,9 @@ async def main():
                         for key in user_keys:
                             out.write("%s\n" % key)
                     os.rename(keys_file_tmp, keys_file)
-                previous = host_keys
+                    previous = host_keys
+            hostname = socket.getfqdn()
+            await client.loop(cb, server=server, port=port, hostname=hostname)
         except asyncio.TimeoutError:
             logging.error("read timeout")
         except asyncio.IncompleteReadError as e:
@@ -59,4 +59,4 @@ async def main():
             logging.error(e)
         except Exception as e:
             logging.exception(e)
-        await asyncio.sleep(period)
+        await asyncio.sleep(1)
