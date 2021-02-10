@@ -52,7 +52,7 @@ async def fetch(*, server=None, port=None, hostname=None):
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', nargs='?', const='*', metavar='hostname')
-    parser.add_argument('-F', nargs='?', const='*', metavar='hostname')
+    parser.add_argument('-l', nargs='?', const='*', metavar='hostname')
     parser.add_argument('-s', metavar='server')
     parser.add_argument('-p', type=int, metavar='port')
     args = parser.parse_args()
@@ -63,8 +63,8 @@ async def main():
         hostname = args.f
         host_keys = await fetch(server=server, port=port, hostname=hostname) 
         print(json.dumps(host_keys, indent=2, sort_keys=True))
-    elif args.F:
-        hostname = args.F
+    elif args.l:
+        hostname = args.l
         async def cb(host_keys):
             print(json.dumps(host_keys, indent=2, sort_keys=True))
         await loop(cb, server=server, port=port, hostname=hostname)

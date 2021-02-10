@@ -12,7 +12,7 @@ from asyncio import wait_for
 keydb = '/var/db/keyserver.db'
 enable_monitor = True
 timeout = 5
-hb_timeout = 5
+hb_timeout = 60
 default_port = 8282
 
 # TODO, do not load if the key is not valid (parseable)
