@@ -12,7 +12,7 @@ from asyncio import wait_for
 keydb = '/var/db/keyserver.db'
 enable_monitor = True
 timeout = 5
-heartbeat_timeout = 5
+hb_timeout = 5
 default_port = 8282
 
 # TODO, do not load if the key is not valid (parseable)
@@ -84,9 +84,10 @@ async def handle_client(keys, reader, writer, sem):
     else:
         hostname_blob = await wait_for(reader.readexactly(hostname_len), timeout)
         hostname = hostname_blob.decode('utf8')
+    writer.write(hb_timeout.to_bytes(2, byteorder='big'))
     while True:
         try:
-            await wait_for(sem.acquire(), heartbeat_timeout)
+            await wait_for(sem.acquire(), hb_timeout)
             host_keys = keys.get_host_keys(hostname=hostname)
             host_keys_blob = json.dumps(host_keys).encode('utf8')
             writer.write(len(host_keys_blob).to_bytes(3, byteorder='big'))

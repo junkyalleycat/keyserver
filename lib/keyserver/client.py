@@ -9,7 +9,6 @@ from asyncio import wait_for
 default_port = 8282
 default_server = 'keyserver'
 timeout = 5
-heartbeat_timeout = 60
 
 nil = chr(0).encode('ascii')
 async def loop(cb, *, server=None, port=None, hostname=None):
@@ -21,8 +20,10 @@ async def loop(cb, *, server=None, port=None, hostname=None):
         hostname_len_blob = len(hostname_blob).to_bytes(1, byteorder='big')
         writer.write(hostname_len_blob)
         writer.write(hostname_blob)
+        hb_timeout_blob = await wait_for(reader.readexactly(2), timeout)
+        hb_timeout = int.from_bytes(hb_timeout_blob, byteorder='big')
         while True:
-            host_keys_len_blob = await wait_for(reader.readexactly(3), heartbeat_timeout * 2)
+            host_keys_len_blob = await wait_for(reader.readexactly(3), hb_timeout*2)
             host_keys_len = int.from_bytes(host_keys_len_blob, byteorder='big')
             if host_keys_len == 0:
                 logging.debug("ping!")
