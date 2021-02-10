@@ -44,9 +44,8 @@ async def fetch(*, server=None, port=None, hostname=None):
         ev.set()
     loop_task = asyncio.create_task(loop(cb, server=server, port=port, hostname=hostname))
     done, _ = await asyncio.wait([ev.wait(), loop_task], return_when=asyncio.FIRST_COMPLETED)
-    for element in done:
-        if loop_task == element:
-            await element
+    if loop_task in done:
+        await loop_task
     loop_task.cancel()
     return host_keys
 
