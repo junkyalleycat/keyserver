@@ -124,7 +124,7 @@ async def main():
     peers = {}
     async def handler(reader, writer):
         peer = writer.get_extra_info('peername')
-        sem = asyncio.BoundedSemaphore(1)
+        sem = asyncio.Semaphore(1)
         peers[peer] = sem
         try:
             await handle_client(keys, reader, writer, sem)
@@ -143,10 +143,7 @@ async def main():
         try:
             keys.reload()
             for sem in peers.values():
-                try:
-                    sem.release()
-                except ValueError:
-                    pass
+                sem.release()
         except Exception as e:
             logging.exception(e)
 
