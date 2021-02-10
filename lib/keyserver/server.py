@@ -109,7 +109,6 @@ async def main():
     loop.add_signal_handler(signal.SIGINT, on_signal)
     loop.add_signal_handler(signal.SIGTERM, on_signal)
 
-    uncaught = None
     def uncaught_exception(loop, context):
         try:
             loop.default_exception_handler(context)
