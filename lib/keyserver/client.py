@@ -1,59 +1,72 @@
 #!/usr/bin/env python3
 
+import logging
 import asyncio
 import argparse
 import json
+from asyncio import wait_for
 
 default_port = 8282
 default_server = 'keyserver'
-default_timeout = 5
+timeout = 5
+heartbeat_timeout = 60
 
-class Client:
-
-    def __init__(self, *, server=None, port=None):
-        self.server = default_server if server is None else server
-        self.port = default_port if port is None else port
-        self.reader = None
-        self.writer = None
-        self.lock = asyncio.Lock()
-       
-    async def __aenter__(self):
-        if self.writer is not None:
-            raise Exception("already opened")
-        self.reader, self.writer = await asyncio.open_connection(self.server, self.port)
-        return self
-
-    async def __aexit__(self, *args):
-        if self.writer is not None:
-            self.writer.close()
-
-    async def fetch(self, *, hostname=None, timeout=None):
-        timeout = default_timeout if timeout is None else timeout
-        async with self.lock:
-            return await asyncio.wait_for(self._fetch(hostname=hostname), timeout)
-
-    async def _fetch(self, *, hostname=None):
+nil = chr(0).encode('ascii')
+async def loop(cb, *, server=None, port=None, hostname=None):
+    server = default_server if server is None else server
+    port = default_port if port is None else port
+    reader, writer = await wait_for(asyncio.open_connection(server, port), timeout)
+    try:
         hostname_blob = b'' if hostname is None else hostname.encode('utf8')
         hostname_len_blob = len(hostname_blob).to_bytes(1, byteorder='big')
-        self.writer.write(hostname_len_blob)
-        self.writer.write(hostname_blob)
-        host_keys_len = int.from_bytes(await self.reader.readexactly(3), byteorder='big')
-        host_keys_blob = await self.reader.readexactly(host_keys_len)
-        return json.loads(host_keys_blob)
+        writer.write(hostname_len_blob)
+        writer.write(hostname_blob)
+        while True:
+            host_keys_len_blob = await wait_for(reader.readexactly(3), heartbeat_timeout * 2)
+            host_keys_len = int.from_bytes(host_keys_len_blob, byteorder='big')
+            if host_keys_len == 0:
+                logging.debug("ping!")
+            else:
+                host_keys_blob = await wait_for(reader.readexactly(host_keys_len), timeout)
+                host_keys = json.loads(host_keys_blob)
+                await cb(host_keys)
+            writer.write(nil)
+    finally:
+        writer.close()
 
 async def fetch(*, server=None, port=None, hostname=None):
-    async with Client(server=server, port=port) as client:
-        return await client.fetch(hostname=hostname)
+    ev = asyncio.Event()
+    host_keys = None
+    async def cb(host_keys_):
+        nonlocal host_keys
+        host_keys = host_keys_
+        ev.set()
+    loop_task = asyncio.create_task(loop(cb, server=server, port=port, hostname=hostname))
+    done, _ = await asyncio.wait([ev.wait(), loop_task], return_when=asyncio.FIRST_COMPLETED)
+    for element in done:
+        if loop_task == element:
+            await element
+    loop_task.cancel()
+    return host_keys
 
 async def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', nargs='?', const='*', metavar='hostname', required=True)
+    parser.add_argument('-f', nargs='?', const='*', metavar='hostname')
+    parser.add_argument('-F', nargs='?', const='*', metavar='hostname')
     parser.add_argument('-s', metavar='server')
     parser.add_argument('-p', type=int, metavar='port')
     args = parser.parse_args()
-    hostname = args.f
     server = args.s
     port = args.p
-    async with Client(server=server, port=port) as client:
-        host_keys = await client.fetch(hostname=hostname) 
-    print(json.dumps(host_keys, indent=2, sort_keys=True))
+    
+    if args.f:
+        hostname = args.f
+        host_keys = await fetch(server=server, port=port, hostname=hostname) 
+        print(json.dumps(host_keys, indent=2, sort_keys=True))
+    elif args.F:
+        hostname = args.F
+        async def cb(host_keys):
+            print(json.dumps(host_keys, indent=2, sort_keys=True))
+        await loop(cb, server=server, port=port, hostname=hostname)
+    else:
+        raise Exception("please specify action")

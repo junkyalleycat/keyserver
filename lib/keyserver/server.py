@@ -7,10 +7,15 @@ import asyncio
 import logging
 import yaml
 import json
+from asyncio import wait_for
 
 keydb = '/var/db/keyserver.db'
 enable_monitor = True
+timeout = 5
+heartbeat_timeout = 5
+default_port = 8282
 
+# TODO, do not load if the key is not valid (parseable)
 class Keys:
 
     def __init__(self):
@@ -73,6 +78,28 @@ class Keys:
             return self.keys[hostname]
         return self.keys['*']
 
+nil = chr(0).encode('ascii')
+async def handle_client(keys, reader, writer, sem):
+    hostname_len_blob = await wait_for(reader.readexactly(1), timeout)
+    hostname_len = int.from_bytes(hostname_len_blob, byteorder='big')
+    if hostname_len == 0:
+        hostname = None
+    else:
+        hostname_blob = await wait_for(reader.readexactly(hostname_len), timeout)
+        hostname = hostname_blob.decode('utf8')
+    while True:
+        try:
+            await wait_for(sem.acquire(), heartbeat_timeout)
+            host_keys = keys.get_host_keys(hostname=hostname)
+            host_keys_blob = json.dumps(host_keys).encode('utf8')
+            writer.write(len(host_keys_blob).to_bytes(3, byteorder='big'))
+            writer.write(host_keys_blob)
+        except asyncio.TimeoutError:
+            writer.write((0).to_bytes(3, byteorder='big'))
+        ack = await wait_for(reader.readexactly(1), timeout)
+        if ack != nil:
+            raise Exception("invalid ack: %s" % ack)
+
 async def main():
     logging.basicConfig(level=logging.INFO)
 
@@ -96,30 +123,32 @@ async def main():
 
     keys = Keys()
 
-    def reload_handler(*args):
-        keys.reload()
-    loop.add_signal_handler(signal.SIGUSR1, reload_handler)
-
+    peers = {}
     async def handler(reader, writer):
-#        peer = writer.get_extra_info('peername')
+        peer = writer.get_extra_info('peername')
+        sem = asyncio.Semaphore()
+        peers[peer] = sem
         try:
-            while True:
-                hostname_len = int.from_bytes(await reader.readexactly(1), byteorder='big')
-                if hostname_len == 0:
-                    hostname = None
-                else:
-                    hostname = (await reader.readexactly(hostname_len)).decode('utf8')
-                host_keys = keys.get_host_keys(hostname=hostname)
-                host_keys_blob = json.dumps(host_keys).encode('utf8')
-                writer.write(len(host_keys_blob).to_bytes(3, byteorder='big'))
-                writer.write(host_keys_blob)
+            await handle_client(keys, reader, writer, sem)
+        except asyncio.TimeoutError:
+            logging.error("timeout for peer: %s" % (peer))
         except asyncio.IncompleteReadError:
             pass
         except Exception as e:
             logging.exception(e)
         finally:
+            del peers[peer]
             writer.close()
-    await asyncio.start_server(handler, '0.0.0.0', 8282)
+    await asyncio.start_server(handler, '0.0.0.0', default_port)
+
+    def reload():
+        keys.reload()
+        for sem in peers.values():
+            sem.release()
+
+    def reload_handler(*args):
+        reload()
+    loop.add_signal_handler(signal.SIGUSR1, reload_handler)
 
     # monitor the db for change
     async def monitor():
@@ -127,7 +156,7 @@ async def main():
         while True:
             mtime = os.stat(keydb).st_mtime
             if mtime != previous:
-                keys.reload()
+                reload()
                 previous = mtime
             await asyncio.sleep(1)
     if enable_monitor:
