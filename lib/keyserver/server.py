@@ -66,10 +66,7 @@ class Keys:
         return keys
 
     def reload(self):
-        try:
-            self.keys = Keys.load()
-        except Exception as e:
-            logging.error(e)
+        self.keys = Keys.load()
 
     def get_host_keys(self, *, hostname=None):
         if hostname is None:
@@ -126,7 +123,7 @@ async def main():
     peers = {}
     async def handler(reader, writer):
         peer = writer.get_extra_info('peername')
-        sem = asyncio.Semaphore()
+        sem = asyncio.BoundedSemaphore(1)
         peers[peer] = sem
         try:
             await handle_client(keys, reader, writer, sem)
@@ -142,9 +139,15 @@ async def main():
     await asyncio.start_server(handler, '0.0.0.0', default_port)
 
     def reload():
-        keys.reload()
-        for sem in peers.values():
-            sem.release()
+        try:
+            keys.reload()
+            for sem in peers.values():
+                try:
+                    sem.release()
+                except ValueError:
+                    pass
+        except Exception as e:
+            logging.exception(e)
 
     def reload_handler(*args):
         reload()
