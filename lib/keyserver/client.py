@@ -22,6 +22,7 @@ async def loop(cb, *, server=None, port=None, hostname=None):
         writer.write(hostname_blob)
         hb_timeout_blob = await wait_for(reader.readexactly(2), timeout)
         hb_timeout = int.from_bytes(hb_timeout_blob, byteorder='big')
+        previous = None
         while True:
             host_keys_len_blob = await wait_for(reader.readexactly(3), hb_timeout*2)
             host_keys_len = int.from_bytes(host_keys_len_blob, byteorder='big')
@@ -30,7 +31,11 @@ async def loop(cb, *, server=None, port=None, hostname=None):
             else:
                 host_keys_blob = await wait_for(reader.readexactly(host_keys_len), timeout)
                 host_keys = json.loads(host_keys_blob)
-                await cb(host_keys)
+                if host_keys == previous:
+                    logging.debug("skipping duplicate")
+                else:
+                    await cb(host_keys)
+                    previous = host_keys
             writer.write(nil)
     finally:
         writer.close()

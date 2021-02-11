@@ -44,13 +44,8 @@ async def main():
 
     os.makedirs(keydir, exist_ok=True)
 
-    previous = None
     async def cb(host_keys):
-        nonlocal previous
-        if host_keys == previous:
-            logging.info('no changes detected, ignoring')
-            return
-        elif len(host_keys) == 0:
+        if len(host_keys) == 0:
             logging.warn('0 host keys found, ignoring')
             return
         for keys_file in os.listdir(keydir):
@@ -66,7 +61,6 @@ async def main():
                 for key in user_keys:
                     out.write("%s\n" % key)
             os.rename(keys_file_tmp, keys_file)
-        previous = host_keys
 
     async def listener():
         while not finish.is_set():
