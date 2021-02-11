@@ -66,7 +66,7 @@ async def main():
                 for key in user_keys:
                     out.write("%s\n" % key)
             os.rename(keys_file_tmp, keys_file)
-            previous = host_keys
+        previous = host_keys
 
     async def listener():
         while not finish.is_set():

@@ -15,24 +15,36 @@ timeout = 5
 hb_timeout = 60
 default_port = 8282
 
-# TODO, do not load if the key is not valid (parseable)
+async def validate_key(key):
+    proc = await asyncio.create_subprocess_exec('/usr/bin/ssh-keygen', '-lf', '/dev/stdin',
+            stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    _, stderr = await proc.communicate(input=key.encode('utf8'))
+    if proc.returncode != 0:
+        error = stderr.decode('utf8').rstrip()
+        raise Exception("%s: %s" % (error, key))
+
 class Keys:
 
     def __init__(self):
-        self.keys = Keys.load()
+        self.keys = {}
+
+    @staticmethod
+    async def create():
+        keys = Keys()
+        await keys.reload()
+        return keys
 
 #keys = hostname -> user, keys
 #host_keys = user, keys
 #user_keys = keys
 #key = key
 
-    @staticmethod
-    def load():
+    async def reload(self):
         with open(keydb, 'r') as in_:
             keys_data = in_.read()
         pre_flat_keys = yaml.load(keys_data, Loader=yaml.FullLoader)
 
-        def resolve(host_keys, pre_host_keys):
+        async def resolve(host_keys, pre_host_keys):
             for user, pre_user_keys in pre_host_keys.items():
                 if len(pre_user_keys) == 0:
                     continue
@@ -46,11 +58,12 @@ class Keys:
                     else:
                         key = pre_key
                     if key not in user_keys:
+                        await validate_key(key)
                         user_keys.append(key)
 
         star_host_keys = {}
         if '*' in pre_flat_keys:
-            resolve(star_host_keys, pre_flat_keys['*'])
+            await resolve(star_host_keys, pre_flat_keys['*'])
 
         keys = {}
         keys['*'] = star_host_keys
@@ -61,12 +74,9 @@ class Keys:
             keys[hostname] = host_keys
             for user, user_keys in star_host_keys.items():
                 host_keys[user] = list(user_keys)
-            resolve(host_keys, pre_host_keys)
+            await resolve(host_keys, pre_host_keys)
 
-        return keys
-
-    def reload(self):
-        self.keys = Keys.load()
+        self.keys = keys
 
     def get_host_keys(self, *, hostname=None):
         if hostname is None:
@@ -118,7 +128,7 @@ async def main():
             finish.set()
     loop.set_exception_handler(uncaught_exception)
 
-    keys = Keys()
+    keys = await Keys.create()
 
     peers = {}
     async def handler(reader, writer):
@@ -138,17 +148,20 @@ async def main():
             writer.close()
     await asyncio.start_server(handler, '0.0.0.0', default_port)
 
-    def reload():
+    async def reload():
         try:
-            keys.reload()
-            for sem in peers.values():
-                sem.release()
+            await keys.reload()
         except Exception as e:
             logging.exception(e)
+        for sem in peers.values():
+            sem.release()
 
-    def reload_handler(*args):
-        reload()
-    loop.add_signal_handler(signal.SIGUSR1, reload_handler)
+# TODO disabled this because i made reload
+# async, do we need a solution here or can
+# i just delete it?
+#    def reload_handler(*args):
+#        reload()
+#    loop.add_signal_handler(signal.SIGUSR1, reload_handler)
 
     # monitor the db for change
     async def monitor():
@@ -156,7 +169,7 @@ async def main():
         while True:
             mtime = os.stat(keydb).st_mtime
             if mtime != previous:
-                reload()
+                await reload()
                 previous = mtime
             await asyncio.sleep(1)
     if enable_monitor:
