@@ -132,10 +132,10 @@ async def main():
 
     peers = {}
     async def handler(reader, writer):
-        peer = writer.get_extra_info('peername')
-        sem = asyncio.Semaphore(1)
-        peers[peer] = sem
         try:
+            peer = writer.get_extra_info('peername')
+            sem = asyncio.Semaphore(1)
+            peers[peer] = sem
             await handle_client(keys, reader, writer, sem)
         except asyncio.TimeoutError:
             logging.error("timeout for peer: %s" % (peer))
@@ -144,17 +144,18 @@ async def main():
         except Exception as e:
             logging.exception(e)
         finally:
-            del peers[peer]
+            if peer in peers:
+                del peers[peer]
             writer.close()
     await asyncio.start_server(handler, '0.0.0.0', default_port)
 
     async def reload():
         try:
             await keys.reload()
+            for sem in peers.values():
+                sem.release()
         except Exception as e:
             logging.exception(e)
-        for sem in peers.values():
-            sem.release()
 
 # TODO disabled this because i made reload
 # async, do we need a solution here or can

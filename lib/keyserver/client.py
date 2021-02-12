@@ -11,7 +11,7 @@ default_server = 'keyserver'
 timeout = 5
 
 nil = chr(0).encode('ascii')
-async def loop(cb, *, server=None, port=None, hostname=None):
+async def loop(cb, *, server=None, port=None, hostname=None, once=False):
     server = default_server if server is None else server
     port = default_port if port is None else port
     reader, writer = await wait_for(asyncio.open_connection(server, port), timeout)
@@ -37,21 +37,17 @@ async def loop(cb, *, server=None, port=None, hostname=None):
                     await cb(host_keys)
                     previous = host_keys
             writer.write(nil)
+            if once:
+                break
     finally:
         writer.close()
 
 async def fetch(*, server=None, port=None, hostname=None):
-    ev = asyncio.Event()
     host_keys = None
     async def cb(host_keys_):
         nonlocal host_keys
         host_keys = host_keys_
-        ev.set()
-    loop_task = asyncio.create_task(loop(cb, server=server, port=port, hostname=hostname))
-    done, _ = await asyncio.wait([ev.wait(), loop_task], return_when=asyncio.FIRST_COMPLETED)
-    if loop_task in done:
-        await loop_task
-    loop_task.cancel()
+    await loop(cb, server=server, port=port, hostname=hostname, once=True)
     return host_keys
 
 async def main():
