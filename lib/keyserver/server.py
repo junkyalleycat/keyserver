@@ -138,9 +138,11 @@ async def main():
             peers[peer] = sem
             await handle_client(keys, reader, writer, sem)
         except asyncio.TimeoutError:
-            logging.error("timeout for peer: %s" % (peer))
+            logging.error("timeout for peer: %s" % str(peer))
         except asyncio.IncompleteReadError:
             pass
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             logging.exception(e)
         finally:
@@ -154,6 +156,8 @@ async def main():
             await keys.reload()
             for sem in peers.values():
                 sem.release()
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             logging.exception(e)
 
