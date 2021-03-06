@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
+import asyncio
+import json
+import logging
 import os
 import signal
-import sys
-import asyncio
-import logging
-import yaml
-import json
 from asyncio import wait_for
+
+import yaml
 
 keydb = '/var/db/keyserver.db'
 enable_monitor = True
@@ -15,13 +15,16 @@ timeout = 5
 hb_timeout = 60
 default_port = 8282
 
+
 async def validate_key(key):
     proc = await asyncio.create_subprocess_exec('/usr/bin/ssh-keygen', '-lf', '/dev/stdin',
-            stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                                                stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
+                                                stderr=asyncio.subprocess.PIPE)
     _, stderr = await proc.communicate(input=key.encode('utf8'))
     if proc.returncode != 0:
         error = stderr.decode('utf8').rstrip()
         raise Exception("%s: %s" % (error, key))
+
 
 class Keys:
 
@@ -34,10 +37,10 @@ class Keys:
         await keys.reload()
         return keys
 
-#keys = hostname -> user, keys
-#host_keys = user, keys
-#user_keys = keys
-#key = key
+    # keys = hostname -> user, keys
+    # host_keys = user, keys
+    # user_keys = keys
+    # key = key
 
     async def reload(self):
         with open(keydb, 'r') as in_:
@@ -85,7 +88,10 @@ class Keys:
             return self.keys[hostname]
         return self.keys['*']
 
+
 nil = chr(0).encode('ascii')
+
+
 async def handle_client(keys, reader, writer, sem):
     hostname_len_blob = await wait_for(reader.readexactly(1), timeout)
     hostname_len = int.from_bytes(hostname_len_blob, byteorder='big')
@@ -108,6 +114,7 @@ async def handle_client(keys, reader, writer, sem):
         if ack != nil:
             raise Exception("invalid ack: %s" % ack)
 
+
 async def main():
     logging.basicConfig(level=logging.INFO)
 
@@ -116,6 +123,7 @@ async def main():
 
     def on_signal(*args):
         finish.set()
+
     loop.add_signal_handler(signal.SIGINT, on_signal)
     loop.add_signal_handler(signal.SIGTERM, on_signal)
 
@@ -126,11 +134,13 @@ async def main():
             logging.error(e)
         finally:
             finish.set()
+
     loop.set_exception_handler(uncaught_exception)
 
     keys = await Keys.create()
 
     peers = {}
+
     async def handler(reader, writer):
         try:
             peer = writer.get_extra_info('peername')
@@ -149,6 +159,7 @@ async def main():
             if peer in peers:
                 del peers[peer]
             writer.close()
+
     await asyncio.start_server(handler, '0.0.0.0', default_port)
 
     async def reload():
@@ -161,12 +172,12 @@ async def main():
         except Exception as e:
             logging.exception(e)
 
-# TODO disabled this because i made reload
-# async, do we need a solution here or can
-# i just delete it?
-#    def reload_handler(*args):
-#        reload()
-#    loop.add_signal_handler(signal.SIGUSR1, reload_handler)
+    # TODO disabled this because i made reload
+    # async, do we need a solution here or can
+    # i just delete it?
+    #    def reload_handler(*args):
+    #        reload()
+    #    loop.add_signal_handler(signal.SIGUSR1, reload_handler)
 
     # monitor the db for change
     async def monitor():
@@ -177,6 +188,7 @@ async def main():
                 await reload()
                 previous = mtime
             await asyncio.sleep(1)
+
     if enable_monitor:
         asyncio.create_task(monitor())
 

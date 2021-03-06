@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 
-import os
-import socket
-import logging
-import asyncio
-import json
 import argparse
+import asyncio
+import logging
+import os
 import signal
+import socket
 
 from . import client
 
 default_keydir = '/var/db/sshkeys'
+
 
 async def main():
     logging.basicConfig(level=logging.INFO)
@@ -20,6 +20,7 @@ async def main():
 
     def on_signal(*args):
         finish.set()
+
     loop.add_signal_handler(signal.SIGINT, on_signal)
     loop.add_signal_handler(signal.SIGTERM, on_signal)
 
@@ -30,6 +31,7 @@ async def main():
             logging.error(e)
         finally:
             finish.set()
+
     loop.set_exception_handler(uncaught_exception)
 
     parser = argparse.ArgumentParser()
@@ -78,6 +80,7 @@ async def main():
             except Exception as e:
                 logging.exception(e)
             await asyncio.sleep(1)
-    asyncio.create_task(listener()) 
+
+    asyncio.create_task(listener())
 
     await finish.wait()

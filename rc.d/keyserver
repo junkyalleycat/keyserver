@@ -19,7 +19,7 @@ extra_commands=reload
 reload_cmd=keyserver_reload
 
 keyserver_reload() {
-  kill -s USR1 `cat $pidfile.child`
+  kill -s USR1 $(cat $pidfile.child)
 }
 
 run_rc_command "$1"

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import logging
-import asyncio
 import argparse
+import asyncio
 import json
+import logging
 from asyncio import wait_for
 
 default_port = 8282
@@ -11,6 +11,11 @@ default_server = 'keyserver'
 timeout = 5
 
 nil = chr(0).encode('ascii')
+
+
+# main client loop, connect, handshake, then simple
+# listen for new key payloads or heartbeats until
+# the task is killed, or the socket dies
 async def loop(cb, *, server=None, port=None, hostname=None, once=False):
     server = default_server if server is None else server
     port = default_port if port is None else port
@@ -24,7 +29,7 @@ async def loop(cb, *, server=None, port=None, hostname=None, once=False):
         hb_timeout = int.from_bytes(hb_timeout_blob, byteorder='big')
         previous = None
         while True:
-            host_keys_len_blob = await wait_for(reader.readexactly(3), hb_timeout*2)
+            host_keys_len_blob = await wait_for(reader.readexactly(3), hb_timeout * 2)
             host_keys_len = int.from_bytes(host_keys_len_blob, byteorder='big')
             if host_keys_len == 0:
                 logging.debug("ping!")
@@ -42,13 +47,18 @@ async def loop(cb, *, server=None, port=None, hostname=None, once=False):
     finally:
         writer.close()
 
+
+# convenience method for fetching a single payload
 async def fetch(*, server=None, port=None, hostname=None):
     host_keys = None
+
     async def cb(host_keys_):
         nonlocal host_keys
         host_keys = host_keys_
+
     await loop(cb, server=server, port=port, hostname=hostname, once=True)
     return host_keys
+
 
 async def main():
     parser = argparse.ArgumentParser()
@@ -59,15 +69,17 @@ async def main():
     args = parser.parse_args()
     server = args.s
     port = args.p
-    
+
     if args.f:
         hostname = args.f
-        host_keys = await fetch(server=server, port=port, hostname=hostname) 
+        host_keys = await fetch(server=server, port=port, hostname=hostname)
         print(json.dumps(host_keys, indent=2, sort_keys=True))
     elif args.l:
         hostname = args.l
+
         async def cb(host_keys):
             print(json.dumps(host_keys, indent=2, sort_keys=True))
+
         await loop(cb, server=server, port=port, hostname=hostname)
     else:
         raise Exception("please specify action")
