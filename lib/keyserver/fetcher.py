@@ -75,6 +75,8 @@ async def main():
                 logging.error(e)
             except ConnectionRefusedError as e:
                 logging.error(e)
+            except socket.gaierror as e:
+                logging.error(e)
             except asyncio.CancelledError:
                 raise
             except Exception as e:
