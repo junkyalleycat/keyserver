@@ -86,3 +86,7 @@ async def main():
     asyncio.create_task(listener())
 
     await finish.wait()
+
+
+if __name__ == '__main__':
+    asyncio.run(main())

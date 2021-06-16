@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -e
+
+python=python3.7
+
+root=$(dirname $BASH_SOURCE)/..
+venv=${root}/venv
+${python} -m pip install --user virtualenv
+${python} -m venv ${venv}
+. ${venv}/bin/activate
+python -m pip install pyyaml uvloop

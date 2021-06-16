@@ -6,7 +6,7 @@ import logging
 import os
 import signal
 from asyncio import wait_for
-
+import uvloop
 import yaml
 
 keydb = '/var/db/keyserver.db'
@@ -193,3 +193,7 @@ async def main():
         asyncio.create_task(monitor())
 
     await finish.wait()
+
+if __name__ == '__main__':
+    uvloop.install()
+    asyncio.run(main())

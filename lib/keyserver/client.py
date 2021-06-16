@@ -83,3 +83,7 @@ async def main():
         await loop(cb, server=server, port=port, hostname=hostname)
     else:
         raise Exception("please specify action")
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
