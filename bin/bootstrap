@@ -4,8 +4,13 @@ set -e
 
 python=python3.7
 
+relpath() { python -c "import os; print(os.path.relpath('$1', '$2'))"; }
+
 root=$(dirname $BASH_SOURCE)/..
 venv=${root}/venv
 ${python} -m venv ${venv}
 source ${venv}/bin/activate
 python -m pip install pyyaml uvloop
+
+site=$(python -c 'import site; print(site.getsitepackages()[0])')
+ln -sf $(relpath ${root}/lib/keyserver ${site}) ${site}

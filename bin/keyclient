@@ -4,4 +4,4 @@ set -e
 
 root=$(dirname $BASH_SOURCE)/..
 source ${root}/venv/bin/activate
-PYTHONPATH=${root}/lib python -m keyserver.client "$@"
+exec python -m keyserver.client "$@"
