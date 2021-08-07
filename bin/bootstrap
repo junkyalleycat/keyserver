@@ -2,7 +2,11 @@
 
 set -e
 
-python=python3.7
+if $(python3 -c 'import sys; sys.exit(not sys.version_info.minor>=7)'); then
+  python=python3
+else
+  python=python3.7
+fi
 
 relpath() { python -c "import os; print(os.path.relpath('$1', '$2'))"; }
 
