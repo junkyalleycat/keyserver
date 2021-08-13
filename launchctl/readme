@@ -1,0 +1,5 @@
+ln -s /usr/local/keyserver/launchctl/org.drew.keyfetcher.plist /Library/LaunchDaemons/org.drew.keyfetcher.plist
+
+launchctl load /Library/LaunchDaemons/org.drew.keyfetcher.plist
+
+* the plist needs to be owned by root *
