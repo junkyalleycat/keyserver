@@ -2,6 +2,6 @@
 
 set -e
 
-root=$(dirname $BASH_SOURCE)/..
+root=$(dirname $(realpath $BASH_SOURCE))/..
 source ${root}/venv/bin/activate
 exec python -m keyserver.client "$@"
