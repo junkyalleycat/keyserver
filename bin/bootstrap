@@ -2,18 +2,17 @@
 
 set -e
 
-python=$1
-test -n "${python}" || python=python3
+python=python3
 ${python} -c 'import sys; sys.exit(sys.version_info.major<3)'
 ${python} -c 'import sys; sys.exit(sys.version_info.minor<8)'
 
-sitepath() { python -c 'import site; print(site.getsitepackages()[0])'; }
 relpath() { python -c "import os; print(os.path.relpath('$1', '$2'))"; }
 
 root=$(dirname $BASH_SOURCE)/..
-venv=${root}/venv
-${python} -m venv ${venv}
+venv=${1:-${root}/venv}
+test -d ${venv} || ${python} -m venv ${venv}
 source ${venv}/bin/activate
 python -m pip install pyyaml uvloop
 
-ln -sf $(relpath ${root}/lib/keyserver $(sitepath)) $(sitepath)
+site=$(python -c 'import site; _,=site.getsitepackages(); print(_)')
+ln -sf $(relpath ${root}/lib/keyserver ${site}) ${site}
