@@ -8,23 +8,25 @@ import signal
 from asyncio import wait_for
 import uvloop
 import yaml
+import glob
 
-keydb = '/var/db/keyserver.db'
+keydb = '/var/db/keyserver2.db'
+keydb2 = '/var/db/keyserver2.db'
 enable_monitor = True
 timeout = 5
 hb_timeout = 60
 default_port = 8282
 
 
-async def validate_key(key):
-    proc = await asyncio.create_subprocess_exec('/usr/bin/ssh-keygen', '-lf', '/dev/stdin',
-                                                stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-                                                stderr=asyncio.subprocess.PIPE)
-    _, stderr = await proc.communicate(input=key.encode('utf8'))
-    if proc.returncode != 0:
-        error = stderr.decode('utf8').rstrip()
-        raise Exception("%s: %s" % (error, key))
+def parse_domain(domain):
+    host, user = domain.split(':')
+    return (host, user,)
 
+class SetEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, set):
+            return list(obj)
+        return json.JSONEncoder.default(self, obj)
 
 class Keys:
 
@@ -34,52 +36,38 @@ class Keys:
     @staticmethod
     async def create():
         keys = Keys()
-        await keys.reload()
+        keys.reload()
         return keys
 
-    # keys = hostname -> user, keys
-    # host_keys = user, keys
-    # user_keys = keys
-    # key = key
-
-    async def reload(self):
-        with open(keydb, 'r') as in_:
-            keys_data = in_.read()
-        pre_flat_keys = yaml.load(keys_data, Loader=yaml.FullLoader)
-
-        async def resolve(host_keys, pre_host_keys):
-            for user, pre_user_keys in pre_host_keys.items():
-                if len(pre_user_keys) == 0:
-                    continue
-                if user not in host_keys:
-                    host_keys[user] = []
-                user_keys = host_keys[user]
-                for pre_key in pre_user_keys:
-                    if pre_key.startswith('file!'):
-                        with open(pre_key[5:], 'r') as in_:
-                            key = in_.read().rstrip()
-                    else:
-                        key = pre_key
-                    if key not in user_keys:
-                        await validate_key(key)
-                        user_keys.append(key)
-
-        star_host_keys = {}
-        if '*' in pre_flat_keys:
-            await resolve(star_host_keys, pre_flat_keys['*'])
-
+    def reload(self):
+        if os.path.exists(keydb2):
+            with open(keydb2, 'r') as infile:
+                db = json.load(infile)
+        else:
+            db = {'keys':{}}
         keys = {}
-        keys['*'] = star_host_keys
-        for hostname, pre_host_keys in pre_flat_keys.items():
-            if hostname == '*':
-                continue
-            host_keys = {}
-            keys[hostname] = host_keys
-            for user, user_keys in star_host_keys.items():
-                host_keys[user] = list(user_keys)
-            await resolve(host_keys, pre_host_keys)
-
-        self.keys = keys
+        wild = {}
+        # keys = hostname->user->keys[]
+        # wild = user->keys[]
+        for _, key in db['keys'].items():
+            keydata = key['data']
+            for domain in key['domains']:
+                host, user = parse_domain(domain)
+                if host == '*':
+                    userkeys = wild.setdefault(user, set())
+                    userkeys.add(keydata)
+                else:
+                    hostkeys = keys.setdefault(host, {})
+                    userkeys = hostkeys.setdefault(user, set())
+                    userkeys.add(keydata)
+        flat_keys = {}
+        flat_keys['*'] = json.dumps(wild, cls=SetEncoder).encode('utf-8')
+        for host, users in keys.items():
+            for wilduser, wilduserkeys in wild.items():
+                userkeys = users.setdefault(wilduser, set())
+                userkeys |= wilduserkeys
+            flat_keys[host] = json.dumps(users, cls=SetEncoder).encode('utf-8')
+        self.keys = flat_keys
 
     def get_host_keys(self, *, hostname=None):
         if hostname is None:
@@ -88,9 +76,7 @@ class Keys:
             return self.keys[hostname]
         return self.keys['*']
 
-
 nil = chr(0).encode('ascii')
-
 
 async def handle_client(keys, reader, writer, sem):
     hostname_len_blob = await wait_for(reader.readexactly(1), timeout)
@@ -104,8 +90,7 @@ async def handle_client(keys, reader, writer, sem):
     while True:
         try:
             await wait_for(sem.acquire(), hb_timeout)
-            host_keys = keys.get_host_keys(hostname=hostname)
-            host_keys_blob = json.dumps(host_keys).encode('utf8')
+            host_keys_blob = keys.get_host_keys(hostname=hostname)
             writer.write(len(host_keys_blob).to_bytes(3, byteorder='big'))
             writer.write(host_keys_blob)
         except asyncio.TimeoutError:
@@ -148,11 +133,11 @@ async def main():
             peers[peer] = sem
             await handle_client(keys, reader, writer, sem)
         except asyncio.TimeoutError:
-            logging.error("timeout for peer: %s" % str(peer))
+            logging.info("timeout for peer: %s" % str(peer))
         except asyncio.IncompleteReadError:
             pass
-        except asyncio.CancelledError:
-            raise
+        except ConnectionResetError:
+            pass
         except Exception as e:
             logging.exception(e)
         finally:
@@ -162,35 +147,11 @@ async def main():
 
     await asyncio.start_server(handler, '0.0.0.0', default_port)
 
-    async def reload():
-        try:
-            await keys.reload()
-            for sem in peers.values():
-                sem.release()
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            logging.exception(e)
-
-    # TODO disabled this because i made reload
-    # async, do we need a solution here or can
-    # i just delete it?
-    #    def reload_handler(*args):
-    #        reload()
-    #    loop.add_signal_handler(signal.SIGUSR1, reload_handler)
-
-    # monitor the db for change
-    async def monitor():
-        previous = os.stat(keydb).st_mtime
-        while True:
-            mtime = os.stat(keydb).st_mtime
-            if mtime != previous:
-                await reload()
-                previous = mtime
-            await asyncio.sleep(1)
-
-    if enable_monitor:
-        asyncio.create_task(monitor())
+    def reload_handler(*args):
+        keys.reload()
+        for sem in peers.values():
+            sem.release()
+    loop.add_signal_handler(signal.SIGUSR1, reload_handler)
 
     await finish.wait()
 

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -e
+
+root=$(dirname $BASH_SOURCE)/..
+source ${root}/venv/bin/activate
+exec python -m keyserver.admin "$@"
