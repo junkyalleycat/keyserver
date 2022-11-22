@@ -7,8 +7,10 @@ import sshpubkeys
 import yaml
 import json
 import keyserver.client
+import signal
 
 keydb='/var/db/keyserver2.db'
+pidfile='/var/run/keyserver.pid.child'
 
 def parse_domain(domain):
     host, name = domain.split(':')
@@ -31,6 +33,12 @@ def write_db(db):
     data = json.dumps(db)
     with open(keydb, 'w') as outfile:
         outfile.write(data)
+    reload_db()
+
+def reload_db():
+    with open(pidfile, 'r') as infile:
+        pid = int(infile.read().strip())
+    os.kill(pid, signal.SIGUSR1)
 
 def out(data):
     print(json.dumps(data, indent=4))
@@ -63,6 +71,8 @@ def main():
 
     remove_key_parser = subparsers.add_parser('remove-key')
     remove_key_parser.add_argument('--name', metavar='name', required=True)
+
+    reload_parser = subparsers.add_parser('reload')
 
     args = parser.parse_args()
 
@@ -133,6 +143,8 @@ def main():
     elif args.action == 'remove-key':
         del db['keys'][args.name]
         write_db(db)
+    elif args.action == 'reload':
+        reload_db()
     else:
         raise Exception("action not specified")
 

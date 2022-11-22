@@ -11,7 +11,6 @@ import yaml
 import glob
 
 keydb = '/var/db/keyserver2.db'
-keydb2 = '/var/db/keyserver2.db'
 enable_monitor = True
 timeout = 5
 hb_timeout = 60
@@ -40,8 +39,8 @@ class Keys:
         return keys
 
     def reload(self):
-        if os.path.exists(keydb2):
-            with open(keydb2, 'r') as infile:
+        if os.path.exists(keydb):
+            with open(keydb, 'r') as infile:
                 db = json.load(infile)
         else:
             db = {'keys':{}}
