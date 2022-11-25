@@ -91,7 +91,7 @@ def main():
             name = args.name
         else:
             name = key.comment
-        if name in db.get('keys', {}):
+        if name in db:
             raise Exception("key already exists: %s" % name)
         db['keys'][name] = {}
         db['keys'][name]['data'] = keydata
@@ -108,7 +108,7 @@ def main():
                 keydata = infile.read()
         elif args.keydata:
             keydata = keydata
-        key = sshpubkeys.SSHKey(keydata)
+        sshpubkeys.SSHKey(keydata)
         db['keys'][name]['data'] = keydata
         domains = set(db['keys'][name]['domains'])
         validate_domains(args.remove_domain)
@@ -132,6 +132,8 @@ def main():
                     host, _ = parse_domain(domain)
                     if host == args.host:
                         names.add(name)
+                    elif host == '*':
+                        names.add(name)
             elif args.user:
                 for domain in key['domains']:
                     _, user = parse_domain(domain)
@@ -139,7 +141,9 @@ def main():
                         names.add(name)
             else:
                 names.add(name)
-        out(list(names))
+        output = list(names)
+        output.sort()
+        out(output)
     elif args.action == 'remove-key':
         del db['keys'][args.name]
         write_db(db)
