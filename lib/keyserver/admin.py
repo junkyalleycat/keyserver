@@ -9,12 +9,12 @@ import json
 import keyserver.client
 import signal
 
-keydb='/var/db/keyserver2.db'
+keydb='/var/db/keyserver.db'
 pidfile='/var/run/keyserver.pid.child'
 
 def parse_domain(domain):
-    host, name = domain.split(':')
-    return (host, name,)
+    user, host = domain.split('@')
+    return (user, host,)
 
 def validate_domains(domains):
     for domain in domains:
@@ -42,6 +42,7 @@ def reload_db():
 
 def out(data):
     print(json.dumps(data, indent=4))
+#    print(yaml.dump(data))
 
 def main():
     parser = argparse.ArgumentParser()
@@ -129,14 +130,14 @@ def main():
                         names.add(name)
             elif args.host:
                 for domain in key['domains']:
-                    host, _ = parse_domain(domain)
+                    _, host = parse_domain(domain)
                     if host == args.host:
                         names.add(name)
                     elif host == '*':
                         names.add(name)
             elif args.user:
                 for domain in key['domains']:
-                    _, user = parse_domain(domain)
+                    user, _ = parse_domain(domain)
                     if user == args.user:
                         names.add(name)
             else:

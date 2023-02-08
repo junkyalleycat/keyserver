@@ -10,7 +10,7 @@ import uvloop
 import yaml
 import glob
 
-keydb = '/var/db/keyserver2.db'
+keydb = '/var/db/keyserver.db'
 enable_monitor = True
 timeout = 5
 hb_timeout = 60
@@ -18,8 +18,8 @@ default_port = 8282
 
 
 def parse_domain(domain):
-    host, user = domain.split(':')
-    return (host, user,)
+    user, host = domain.split('@')
+    return (user, host,)
 
 class SetEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -51,7 +51,7 @@ class Keys:
         for _, key in db['keys'].items():
             keydata = key['data']
             for domain in key['domains']:
-                host, user = parse_domain(domain)
+                user, host = parse_domain(domain)
                 if host == '*':
                     userkeys = wild.setdefault(user, set())
                     userkeys.add(keydata)
