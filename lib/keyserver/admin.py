@@ -1,20 +1,16 @@
 #!/usr/bin/env python3
 
+from .common import *
 import os
 import asyncio
 import argparse
 import sshpubkeys
-import yaml
 import json
 import keyserver.client
 import signal
 
 keydb='/var/db/keyserver.db'
 pidfile='/var/run/keyserver.pid.child'
-
-def parse_domain(domain):
-    user, host = domain.split('@')
-    return (user, host,)
 
 def validate_domains(domains):
     for domain in domains:
@@ -42,7 +38,6 @@ def reload_db():
 
 def out(data):
     print(json.dumps(data, indent=4))
-#    print(yaml.dump(data))
 
 def main():
     parser = argparse.ArgumentParser()

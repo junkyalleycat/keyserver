@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from .common import *
 import asyncio
 import json
 import logging
@@ -11,15 +12,9 @@ import yaml
 import glob
 
 keydb = '/var/db/keyserver.db'
-enable_monitor = True
 timeout = 5
 hb_timeout = 60
-default_port = 8282
 
-
-def parse_domain(domain):
-    user, host = domain.split('@')
-    return (user, host,)
 
 class SetEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -74,8 +69,6 @@ class Keys:
         if hostname in self.keys:
             return self.keys[hostname]
         return self.keys['*']
-
-nil = chr(0).encode('ascii')
 
 async def handle_client(keys, reader, writer, sem):
     hostname_len_blob = await wait_for(reader.readexactly(1), timeout)

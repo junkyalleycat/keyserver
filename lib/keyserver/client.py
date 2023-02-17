@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 
+from .common import *
 import argparse
 import asyncio
 import json
 import logging
 from asyncio import wait_for
 
-default_port = 8282
 default_server = 'keyserver'
 timeout = 5
-
-nil = chr(0).encode('ascii')
 
 
 # main client loop, connect, handshake, then simple
