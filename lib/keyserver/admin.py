@@ -4,7 +4,6 @@ from .common import *
 import os
 import asyncio
 import argparse
-import sshpubkeys
 import json
 import keyserver.client
 import signal
@@ -82,7 +81,7 @@ def main():
             keydata = args.keydata
         else:
             raise Exception("keyfile or keydata required")
-        key = sshpubkeys.SSHKey(keydata)
+        key = SSHKey(keydata)
         if args.name:
             name = args.name
         else:
@@ -104,7 +103,7 @@ def main():
                 keydata = infile.read()
         elif args.keydata:
             keydata = keydata
-        sshpubkeys.SSHKey(keydata)
+        SSHKey(keydata)
         db['keys'][name]['data'] = keydata
         domains = set(db['keys'][name]['domains'])
         validate_domains(args.remove_domain)

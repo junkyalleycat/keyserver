@@ -12,7 +12,7 @@ root=$(dirname $BASH_SOURCE)/..
 venv=${1:-${root}/venv}
 test -d ${venv} || ${python} -m venv ${venv}
 source ${venv}/bin/activate
-python -m pip install wheel pyyaml uvloop dnspython sshpubkeys
+python -m pip install wheel pyyaml uvloop dnspython
 
 site=$(python -c 'import site; _,=site.getsitepackages(); print(_)')
 ln -sf $(relpath ${root}/lib/keyserver ${site}) ${site}

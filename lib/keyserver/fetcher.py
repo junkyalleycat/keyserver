@@ -6,6 +6,7 @@ import logging
 import os
 import signal
 import socket
+import uvloop
 
 from . import client
 
@@ -89,4 +90,5 @@ async def main():
 
 
 if __name__ == '__main__':
+    uvloop.install()
     asyncio.run(main())

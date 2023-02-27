@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 from asyncio import wait_for
+import uvloop
 
 default_server = 'keyserver'
 timeout = 5
@@ -84,4 +85,5 @@ async def main():
 
 
 if __name__ == '__main__':
+    uvloop.install()
     asyncio.run(main())
