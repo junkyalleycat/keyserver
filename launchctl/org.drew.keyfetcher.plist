@@ -5,7 +5,7 @@
     <key>Label</key>
     <string>org.drew.keyfetcher</string>
     <key>Program</key>
-    <string>/usr/local/keyserver/bin/keyfetcher</string>
+    <string>/opt/keyserver/bin/keyfetcher</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>

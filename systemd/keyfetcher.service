@@ -2,4 +2,4 @@
 WantedBy = multi-user.target
 
 [Service]
-ExecStart=/usr/local/keyserver/bin/keyfetcher
+ExecStart=/opt/keyserver/bin/keyfetcher
