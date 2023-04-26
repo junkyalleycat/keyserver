@@ -9,17 +9,13 @@ export PATH=/usr/local/bin:$PATH
 . /etc/rc.subr
 
 name="keyserver"
-load_rc_config $name
-
 rcvar="${name}_enable"
-pidfile="/var/run/$name.pid"
-command="/usr/sbin/daemon"
-command_args="-c -r -t $name -S -T $name -P $pidfile -p $pidfile.child /opt/keyserver/bin/keyserver"
-extra_commands=reload
-reload_cmd=keyserver_reload
 
-keyserver_reload() {
-  kill -s USR1 $(cat $pidfile.child)
-}
+pidfile="/var/run/${name}.pid"
+command="/usr/sbin/daemon"
+command_args="-c -r -t ${name} -S -T ${name} -P ${pidfile} /opt/keyserver/bin/keyserver"
+
+load_rc_config ${name}
+: ${keyserver_enable:=no}
 
 run_rc_command "$1"
