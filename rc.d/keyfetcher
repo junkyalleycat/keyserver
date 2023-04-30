@@ -11,11 +11,11 @@ export PATH=/usr/local/bin:$PATH
 name="keyfetcher"
 rcvar="${name}_enable"
 
+load_rc_config ${name}
+: ${keyfetcher_enable:=no}
+
 pidfile="/var/run/${name}.pid"
 command="/usr/sbin/daemon"
 command_args="-c -r -t ${name} -S -T ${name} -P ${pidfile} /opt/keyserver/bin/keyfetcher"
-
-load_rc_config ${name}
-: ${keyfetcher_enable:=no}
 
 run_rc_command "$1"
