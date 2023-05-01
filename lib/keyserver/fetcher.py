@@ -7,11 +7,11 @@ import os
 import signal
 import socket
 import uvloop
+from pathlib import *
 
 from . import client
 
-default_keydir = '/var/db/sshkeys'
-
+default_keydir = Path('/var/db/sshkeys')
 
 async def main():
     logging.basicConfig(level=logging.INFO)
@@ -19,57 +19,53 @@ async def main():
     loop = asyncio.get_event_loop()
     finish = asyncio.Event()
 
-    def on_signal(*args):
-        finish.set()
-
-    loop.add_signal_handler(signal.SIGINT, on_signal)
-    loop.add_signal_handler(signal.SIGTERM, on_signal)
+    loop.add_signal_handler(signal.SIGINT, finish.set)
+    loop.add_signal_handler(signal.SIGTERM, finish.set)
 
     def uncaught_exception(loop, context):
-        try:
-            loop.default_exception_handler(context)
-        except Exception as e:
-            logging.error(e)
-        finally:
-            finish.set()
+        loop.default_exception_handler(context)
+        finish.set()
 
     loop.set_exception_handler(uncaught_exception)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-k', default=default_keydir, metavar='keydir')
+    parser.add_argument('-k', type=Path, default=default_keydir, metavar='keydir')
     parser.add_argument('-s', metavar='server')
     parser.add_argument('-p', type=int, metavar='port')
+    parser.add_argument('--fqdn', default=socket.getfqdn(), metavar='fqdn')
+    parser.add_argument('-d', action='store_true', help='debug')
     args = parser.parse_args()
 
+    if args.d:
+        logging.root.setLevel(logging.DEBUG)
+    
     keydir = args.k
     server = args.s
     port = args.p
+    fqdn = args.fqdn
 
-    os.makedirs(keydir, exist_ok=True)
+    keydir.mkdir(parents=True, exist_ok=True)
 
     async def cb(host_keys):
         if len(host_keys) == 0:
             logging.warn('0 host keys found, ignoring')
             return
-        for keys_file in os.listdir(keydir):
-            user, ext = os.path.splitext(keys_file)
-            if ext != '.keys':
+        for keys_file in keydir.iterdir():
+            if keys_file.suffix != '.keys':
                 continue
+            user = keys_file.stem
             if user not in host_keys:
-                os.unlink("%s/%s" % (keydir, keys_file))
-        for user, user_keys in host_keys.items():
-            keys_file = "%s/%s.keys" % (keydir, user)
-            keys_file_tmp = "%s.tmp" % keys_file
-            with open(keys_file_tmp, 'w') as out:
-                for key in user_keys:
-                    out.write("%s\n" % key)
-            os.rename(keys_file_tmp, keys_file)
+                logging.debug(f'unlink({keys_file})')
+                keys_file.unlink()
+        for user, keys in host_keys.items():
+            keys_file = keydir.joinpath(f'{user}.keys')
+            data = '\n'.join(keys)
+            keys_file.write_text(data)
 
     async def listener():
         while not finish.is_set():
-            hostname = socket.getfqdn()
             try:
-                await client.loop(cb, server=server, port=port, hostname=hostname)
+                await client.loop(cb, server=server, port=port, hostname=fqdn)
             except asyncio.TimeoutError:
                 logging.error("read timeout")
             except asyncio.IncompleteReadError as e:
@@ -78,8 +74,6 @@ async def main():
                 logging.error(e)
             except socket.gaierror as e:
                 logging.error(e)
-            except asyncio.CancelledError:
-                raise
             except Exception as e:
                 logging.exception(e)
             await asyncio.sleep(1)
