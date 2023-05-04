@@ -7,32 +7,29 @@ import argparse
 import json
 import keyserver.client
 import signal
+from pathlib import *
 
-keydb='/var/db/keyserver.db'
-pidfile='/var/run/keyserver.pid.child'
+keydb=Path('/var/db/keyserver.db')
+pidfile=Path('/var/run/keyserver.pid.child')
 
 def validate_domains(domains):
     for domain in domains:
         parse_domain(domain)
 
 def read_db():
-    if os.path.exists(keydb):
-        with open(keydb, 'r') as infile:
-            db = json.load(infile)
+    if keydb.exists():
+        db = json.loads(keydb.read_text())
     else:
         db = {}
     db.setdefault('keys', {})
     return db
 
 def write_db(db):
-    data = json.dumps(db)
-    with open(keydb, 'w') as outfile:
-        outfile.write(data)
+    keydb.write_text(json.dumps(db))
     reload_db()
 
 def reload_db():
-    with open(pidfile, 'r') as infile:
-        pid = int(infile.read().strip())
+    pid = int(pidfile.read_text().strip())
     os.kill(pid, signal.SIGUSR1)
 
 def out(data):
@@ -44,13 +41,13 @@ def main():
 
     add_key_parser = subparsers.add_parser('add-key')
     add_key_parser.add_argument('--name', metavar='name')
-    add_key_parser.add_argument('--keyfile', metavar='keyfile')
+    add_key_parser.add_argument('--keyfile', type=Path, metavar='keyfile')
     add_key_parser.add_argument('--keydata', metavar='keydata')
     add_key_parser.add_argument('--domain', action='append', default=[], metavar='domain')
 
     update_key_parser = subparsers.add_parser('update-key')
     update_key_parser.add_argument('--name', metavar='name', required=True)
-    update_key_parser.add_argument('--keyfile', metavar='keyfile')
+    update_key_parser.add_argument('--keyfile', type=Path, metavar='keyfile')
     update_key_parser.add_argument('--keydata', metavar='keydata')
     update_key_parser.add_argument('--add-domain', action='append', default=[], metavar='domain')
     update_key_parser.add_argument('--remove-domain', action='append', default=[], metavar='domain')
@@ -75,8 +72,7 @@ def main():
 
     if args.action == 'add-key':
         if args.keyfile:
-            with open(args.keyfile, 'r') as infile:
-                keydata = infile.read()
+            keydata = args.keyfile.read_text()
         elif args.keydata:
             keydata = args.keydata
         else:
@@ -99,8 +95,7 @@ def main():
         name = args.name
         keydata = db['keys'][name]['data']
         if args.keyfile:
-            with open(args.keyfile, 'r') as infile:
-                keydata = infile.read()
+            keydata = args.keyfile.read_text()
         elif args.keydata:
             keydata = keydata
         SSHKey(keydata)

@@ -10,8 +10,9 @@ from asyncio import wait_for
 import uvloop
 import yaml
 import glob
+from pathlib import Path
 
-keydb = '/var/db/keyserver.db'
+keydb = Path('/var/db/keyserver.db')
 timeout = 5
 hb_timeout = 60
 
@@ -34,9 +35,8 @@ class Keys:
         return keys
 
     def reload(self):
-        if os.path.exists(keydb):
-            with open(keydb, 'r') as infile:
-                db = json.load(infile)
+        if keydb.exists():
+            db = json.loads(keydb.read_text())
         else:
             db = {'keys':{}}
         keys = {}

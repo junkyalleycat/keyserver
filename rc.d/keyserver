@@ -16,6 +16,6 @@ load_rc_config ${name}
 
 pidfile="/var/run/${name}.pid"
 command="/usr/sbin/daemon"
-command_args="-c -r -t ${name} -S -T ${name} -P ${pidfile} /opt/keyserver/bin/keyserver"
+command_args="-c -r -t ${name} -S -T ${name} -P ${pidfile} -p ${pidfile}.child /opt/keyserver/bin/keyserver"
 
 run_rc_command "$1"
