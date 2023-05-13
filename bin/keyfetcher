@@ -1,7 +1,11 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 
-set -e
+import sys
+import os
+from pathlib import *
 
-root=$(dirname $BASH_SOURCE)/..
-source ${root}/venv/bin/activate
-exec python -m keyserver.fetcher "$@"
+module = 'keyserver.fetcher'
+
+root = Path(__file__).resolve().parents[1]
+python = root.joinpath('venv/bin/python3')
+os.execv(python, [python, '-m', module]+sys.argv[1:])
