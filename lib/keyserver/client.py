@@ -65,12 +65,10 @@ class Client:
 def create_client(server, port, *, enable_ssl=True):
     if enable_ssl:
         ssl_ctx = ssl.create_default_context()
-    else:
-        ssl_ctx = None
-    if ssl:
         server = default_ssl_server if server is None else server
         port = default_ssl_port if port is None else port
     else:
+        ssl_ctx = None
         server = default_server if server is None else server
         port = default_port if port is None else port
     return Client(endpoint=(server, port), ssl=ssl_ctx)
