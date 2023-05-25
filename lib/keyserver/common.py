@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 default_port = 8282
+default_ssl_port = 8283
 
 nil = b'\0'
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from .common import *
+import argparse
 import asyncio
 import json
 import logging
@@ -11,7 +11,11 @@ import uvloop
 import yaml
 import glob
 from pathlib import Path
+import ssl
 
+from .common import *
+
+default_config_path = Path('/usr/local/etc/keyserver.yaml')
 keydb = Path('/var/db/keyserver.db')
 timeout = 5
 hb_timeout = 60
@@ -98,21 +102,23 @@ async def main():
     loop = asyncio.get_event_loop()
     finish = asyncio.Event()
 
-    def on_signal(*args):
-        finish.set()
-
-    loop.add_signal_handler(signal.SIGINT, on_signal)
-    loop.add_signal_handler(signal.SIGTERM, on_signal)
+    loop.add_signal_handler(signal.SIGINT, finish.set)
+    loop.add_signal_handler(signal.SIGTERM, finish.set)
 
     def uncaught_exception(loop, context):
-        try:
-            loop.default_exception_handler(context)
-        except Exception as e:
-            logging.error(e)
-        finally:
-            finish.set()
+        loop.default_exception_handler(context)
+        finish.set()
 
     loop.set_exception_handler(uncaught_exception)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', type=Path, default=default_config_path, metavar='config file')
+    args = parser.parse_args()
+
+    if args.c.exists():
+        config = yaml.load(args.c.read_text(), yaml.FullLoader)
+    else:
+        config = {}
 
     keys = await Keys.create()
 
@@ -137,7 +143,21 @@ async def main():
                 del peers[peer]
             writer.close()
 
-    await asyncio.start_server(handler, '0.0.0.0', default_port)
+    endpoint = config.get('endpoint', ('0.0.0.0', default_port))
+    logging.info(f'starting server: {endpoint}')
+    await asyncio.start_server(handler, endpoint[0], endpoint[1])
+
+    ssl_config = config.get('ssl', {})
+    if ssl_config.get('enabled', False):
+        ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ssl_ctx.options |= ssl.OP_NO_TLSv1
+        ssl_ctx.options |= ssl.OP_NO_TLSv1_1
+        ssl_ctx.options |= ssl.OP_SINGLE_DH_USE
+        ssl_ctx.options |= ssl.OP_SINGLE_ECDH_USE
+        ssl_ctx.load_cert_chain(ssl_config['cert'], keyfile=ssl_config['key'])
+        ssl_endpoint = ssl_config.get('endpoint', ('0.0.0.0', default_ssl_port))
+        logging.info(f'starting ssl server: {ssl_endpoint}')
+        await asyncio.start_server(handler, ssl_endpoint[0], ssl_endpoint[1], ssl=ssl_ctx)
 
     def reload_handler(*args):
         keys.reload()
