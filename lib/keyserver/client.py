@@ -10,8 +10,7 @@ import uvloop
 
 from .common import *
 
-default_server = 'keyserver'
-default_ssl_server = 'keyserver.lan.raincity.io'
+default_server = 'keyserver.lan.raincity.io'
 default_timeout = 5
 
 # basic client, to fetch only one break out of loop
@@ -65,7 +64,7 @@ class Client:
 def create_client(server, port, *, enable_ssl=True):
     if enable_ssl:
         ssl_ctx = ssl.create_default_context()
-        server = default_ssl_server if server is None else server
+        server = default_server if server is None else server
         port = default_ssl_port if port is None else port
     else:
         ssl_ctx = None
