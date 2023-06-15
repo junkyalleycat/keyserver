@@ -75,6 +75,13 @@ class Keys:
         return self.keys['*']
 
 async def handle_client(keys, reader, writer, sem):
+    if writer.get_extra_info('sslcontext') is not None:
+        version_blob = await wait_for(reader.readexactly(1), timeout)
+        version = int.from_bytes(version_blob, byteorder='big')
+    else:
+        version = 0
+    if version not in (0,):
+        raise Exception(f'invalid version: {version}')
     hostname_len_blob = await wait_for(reader.readexactly(1), timeout)
     hostname_len = int.from_bytes(hostname_len_blob, byteorder='big')
     if hostname_len == 0:

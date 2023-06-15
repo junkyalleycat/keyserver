@@ -44,6 +44,7 @@ def main():
     add_key_parser.add_argument('--keyfile', type=Path, metavar='keyfile')
     add_key_parser.add_argument('--keydata', metavar='keydata')
     add_key_parser.add_argument('--domain', action='append', default=[], metavar='domain')
+    add_key_parser.add_argument('--option', action='append', default=[], metavar='option')
 
     update_key_parser = subparsers.add_parser('update-key')
     update_key_parser.add_argument('--name', metavar='name', required=True)
@@ -52,6 +53,8 @@ def main():
     update_key_parser.add_argument('--add-domain', action='append', default=[], metavar='domain')
     update_key_parser.add_argument('--remove-domain', action='append', default=[], metavar='domain')
     update_key_parser.add_argument('--rename', metavar='name')
+    update_key_parser.add_argument('--add-option', action='append', default=[], metavar='option')
+    update_key_parser.add_argument('--remove-option', action='append', default=[], metavar='option')
 
     describe_key_parser = subparsers.add_parser('describe-key')
     describe_key_parser.add_argument('--name', metavar='name', required=True)
@@ -88,6 +91,7 @@ def main():
         db['keys'][name]['data'] = keydata
         validate_domains(args.domain)
         db['keys'][name]['domains'] = args.domain
+        db['keys'][name]['options'] = args.option
         write_db(db)
     elif args.action == 'describe-key':
         out(db['keys'][args.name])
@@ -100,12 +104,19 @@ def main():
             keydata = keydata
         SSHKey(keydata)
         db['keys'][name]['data'] = keydata
+
         domains = set(db['keys'][name]['domains'])
         validate_domains(args.remove_domain)
         domains -= set(args.remove_domain)
         validate_domains(args.add_domain)
         domains |= set(args.add_domain)
         db['keys'][name]['domains'] = list(domains)
+
+        options = set(db['keys'][name].get('options', []))
+        options -= set(args.remove_option)
+        options |= set(args.add_option)
+        db['keys'][name]['options'] = list(options)
+
         if args.rename:
             db['keys'][args.rename] = db['keys'][name]
             del db['keys'][name]
