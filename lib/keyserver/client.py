@@ -22,6 +22,8 @@ class Client:
         self.ssl = ssl
 
     async def _connect_handshake(self, reader, writer, hostname):
+        if self.ssl is not None:
+            writer.write(bytes((0,)))
         hostname_blob = b'' if hostname is None else hostname.encode('utf8')
         hostname_len_blob = len(hostname_blob).to_bytes(1, byteorder='big')
         writer.write(hostname_len_blob)
