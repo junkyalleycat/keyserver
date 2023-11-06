@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "keyserver"
+version = "0.1"
+authors = [
+  { name="Drew Gochenaur" }
+]
+requires-python = ">=3.8"
+dependencies = [
+  "pyyaml>=5.0",
+  "uvloop>=0.17.0",
+  "dnspython>=2.3.0"
+]
+
+[project.scripts]
+keyclient = "keyserver.client:entry"
+keyserver = "keyserver.server:entry"
+keyfetcher = "keyserver.fetcher:entry"
+keyadmin = "keyserver.fetcher:main"

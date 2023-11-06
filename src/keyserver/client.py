@@ -102,7 +102,7 @@ async def main():
     else:
         raise Exception("please specify action")
 
-
-if __name__ == '__main__':
+def entry():
     uvloop.install()
     asyncio.run(main())
+

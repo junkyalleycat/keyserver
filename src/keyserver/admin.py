@@ -153,5 +153,3 @@ def main():
     else:
         raise Exception("action not specified")
 
-if __name__ == '__main__':
-    main()

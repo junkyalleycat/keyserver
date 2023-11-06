@@ -1,21 +1,21 @@
 #!/bin/sh
 
 # REQUIRE: DAEMON
-# PROVIDE: keyserver
+# PROVIDE: keyfetcher
 # KEYWORD: shutdown
 
 export PATH=/usr/local/bin:$PATH
 
 . /etc/rc.subr
 
-name="keyserver"
+name="keyfetcher"
 rcvar="${name}_enable"
 
 load_rc_config ${name}
-: ${keyserver_enable:=no}
+: ${keyfetcher_enable:=no}
 
 pidfile="/var/run/${name}.pid"
 command="/usr/sbin/daemon"
-command_args="-c -r -t ${name} -S -T ${name} -P ${pidfile} -p ${pidfile}.child /opt/keyserver/bin/keyserver"
+command_args="-c -r -t ${name} -S -T ${name} -P ${pidfile} /usr/local/bin/keyfetcher"
 
 run_rc_command "$1"

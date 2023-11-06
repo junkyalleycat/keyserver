@@ -83,6 +83,7 @@ async def main():
     await finish.wait()
 
 
-if __name__ == '__main__':
+def entry():
     uvloop.install()
     asyncio.run(main())
+
